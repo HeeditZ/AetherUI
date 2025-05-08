@@ -1,11 +1,13 @@
--- AetherUI.lua (Executor-safe)
-
+-- AetherUI.lua (Improved Executor-Safe Version)
 local AetherUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
 
-local guiParent = (gethui and gethui()) or game.CoreGui
+-- Check for existing UI and destroy it
+if game.CoreGui:FindFirstChild("AetherUI") then
+    game.CoreGui.AetherUI:Destroy()
+end
 
 -- === Theme Config ===
 local theme = {
@@ -13,29 +15,49 @@ local theme = {
     TextColor = Color3.fromRGB(255, 255, 255),
     ButtonColor = Color3.fromRGB(50, 50, 60),
     HoverColor = Color3.fromRGB(70, 70, 85),
-    Transparency = 0.3
+    Transparency = 0.3,
+    BlurSize = 12
 }
-
--- === Blur Effect ===
-local blur = Instance.new("BlurEffect")
-blur.Size = 12
-blur.Parent = Lighting
 
 -- === GUI Setup ===
 local gui = Instance.new("ScreenGui")
 gui.Name = "AetherUI"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
-gui.Parent = guiParent
+gui.Parent = game.CoreGui
+
+-- === Blur Effect ===
+local blur = Instance.new("BlurEffect")
+blur.Name = "AetherUIBlur"
+blur.Size = theme.BlurSize
+blur.Parent = game:GetService("Lighting")
+
+-- === Window Management ===
+local windows = {}
+local isUIVisible = true
+
+-- === Input Handler ===
+local inputConnection
+local function handleUIInput(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.K then
+        isUIVisible = not isUIVisible
+        for _, window in pairs(windows) do
+            window.Visible = isUIVisible
+            TweenService:Create(window, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+                BackgroundTransparency = isUIVisible and theme.Transparency or 1
+            }):Play()
+        end
+        blur.Enabled = isUIVisible
+    end
+end
 
 -- === Window Function ===
 function AetherUI:CreateWindow(options)
-    -- Default values
     local windowName = options.Name or "AetherUI Window"
     local windowSize = options.Size or UDim2.new(0.8, 0, 0, 60)
-    local windowPos = options.Position or UDim2.new(0.5, 0, 1, -40)  -- Slightly adjusted position (higher)
+    local windowPos = options.Position or UDim2.new(0.5, 0, 1, -40)
 
-    -- === Create the Main Window ===
+    -- Create main window
     local main = Instance.new("Frame")
     main.Name = windowName
     main.AnchorPoint = Vector2.new(0.5, 1)
@@ -46,6 +68,7 @@ function AetherUI:CreateWindow(options)
     main.BorderSizePixel = 0
     main.Parent = gui
 
+    -- Window styling
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = main
@@ -57,87 +80,12 @@ function AetherUI:CreateWindow(options)
     layout.Padding = UDim.new(0, 8)
     layout.Parent = main
 
-    -- === Open/Close Animation ===
-    local isOpen = true
-
-    UserInputService.InputBegan:Connect(function(input, processed)
-        if not processed and input.KeyCode == Enum.KeyCode.K then
-            isOpen = not isOpen
-            local goal = { Size = isOpen and UDim2.new(0.8, 0, 0, 60) or UDim2.new(0.8, 0, 0, 0) }
-            TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal):Play()
-            blur.Enabled = isOpen
-        end
-    end)
-
-    -- === API to Add UI Elements ===
-    function self:AddButton(text, callback)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(0, 100, 0, 40)
-        button.BackgroundColor3 = theme.ButtonColor
-        button.BackgroundTransparency = 0.1
-        button.Text = text
-        button.TextColor3 = theme.TextColor
-        button.Font = Enum.Font.Gotham
-        button.TextSize = 14
-        button.AutoButtonColor = false
-        button.Parent = main
-
-        local bcorner = Instance.new("UICorner")
-        bcorner.CornerRadius = UDim.new(0, 8)
-        bcorner.Parent = button
-
-        button.MouseEnter:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundColor3 = theme.HoverColor
-            }):Play()
-        end)
-        button.MouseLeave:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundColor3 = theme.ButtonColor
-            }):Play()
-        end)
-
-        button.MouseButton1Click:Connect(function()
-            if callback then callback() end
-        end)
+    -- Input connection management
+    if not inputConnection then
+        inputConnection = UserInputService.InputBegan:Connect(handleUIInput)
     end
 
-    function self:AddToggle(text, default, callback)
-        local toggleFrame = Instance.new("Frame")
-        toggleFrame.Size = UDim2.new(0, 100, 0, 40)
-        toggleFrame.BackgroundTransparency = 1
-        toggleFrame.Parent = main
-
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 0.5, 0)
-        label.BackgroundTransparency = 1
-        label.Text = text
-        label.TextColor3 = theme.TextColor
-        label.Font = Enum.Font.Gotham
-        label.TextSize = 14
-        label.Parent = toggleFrame
-
-        local switch = Instance.new("TextButton")
-        switch.Size = UDim2.new(0, 40, 0, 20)
-        switch.Position = UDim2.new(1, -50, 0.5, -10)
-        switch.BackgroundColor3 = theme.ButtonColor
-        switch.Text = default and "ON" or "OFF"
-        switch.TextColor3 = theme.TextColor
-        switch.Font = Enum.Font.Gotham
-        switch.TextSize = 12
-        switch.Parent = toggleFrame
-
-        local tcorner = Instance.new("UICorner")
-        tcorner.CornerRadius = UDim.new(0, 8)
-        tcorner.Parent = switch
-
-        switch.MouseButton1Click:Connect(function()
-            default = not default
-            switch.Text = default and "ON" or "OFF"
-            if callback then callback(default) end
-        end)
-    end
-
+    -- === Improved Slider ===
     function self:AddSlider(text, min, max, default, callback)
         local sliderFrame = Instance.new("Frame")
         sliderFrame.Size = UDim2.new(0, 200, 0, 40)
@@ -153,38 +101,68 @@ function AetherUI:CreateWindow(options)
         label.TextSize = 14
         label.Parent = sliderFrame
 
-        local slider = Instance.new("Frame")
-        slider.Size = UDim2.new(1, -40, 0, 10)
-        slider.Position = UDim2.new(0, 20, 0.5, -5)
-        slider.BackgroundColor3 = theme.ButtonColor
-        slider.Parent = sliderFrame
+        local track = Instance.new("Frame")
+        track.Size = UDim2.new(1, -40, 0, 4)
+        track.Position = UDim2.new(0, 20, 0.75, 0)
+        track.BackgroundColor3 = theme.ButtonColor
+        track.Parent = sliderFrame
 
         local thumb = Instance.new("Frame")
         thumb.Size = UDim2.new(0, 20, 0, 20)
+        thumb.AnchorPoint = Vector2.new(0.5, 0.5)
+        thumb.Position = UDim2.new((default - min)/(max - min), 0, 0.75, 0)
         thumb.BackgroundColor3 = theme.HoverColor
-        thumb.BorderSizePixel = 0
-        thumb.Parent = slider
+        thumb.Parent = sliderFrame
 
-        local scorner = Instance.new("UICorner")
-        scorner.CornerRadius = UDim.new(0, 10)
-        scorner.Parent = thumb
+        -- Slider interaction
+        local dragging = false
+        local connection
 
-        thumb.Position = UDim2.new((default - min) / (max - min), 0, 0, 0)
-
-        slider.MouseButton1Drag:Connect(function(input)
-            local newX = math.clamp(input.Position.X - slider.AbsolutePosition.X, 0, slider.AbsoluteSize.X)
-            thumb.Position = UDim2.new(newX / slider.AbsoluteSize.X, 0, 0, 0)
-            local value = min + (max - min) * (newX / slider.AbsoluteSize.X)
-            if callback then callback(value) end
+        thumb.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                connection = RunService.Heartbeat:Connect(function()
+                    if dragging then
+                        local mouse = UserInputService:GetMouseLocation()
+                        local relativeX = math.clamp(
+                            mouse.X - track.AbsolutePosition.X,
+                            0,
+                            track.AbsoluteSize.X
+                        )
+                        local value = min + (max - min) * (relativeX / track.AbsoluteSize.X)
+                        thumb.Position = UDim2.new(relativeX / track.AbsoluteSize.X, 0, 0.75, 0)
+                        if callback then callback(math.floor(value)) end
+                    end
+                end)
+            end
         end)
+
+        thumb.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+                if connection then
+                    connection:Disconnect()
+                end
+            end
+        end)
+
+        UICorner.new(track).CornerRadius = UDim.new(1, 0)
+        UICorner.new(thumb).CornerRadius = UDim.new(1, 0)
     end
 
-    -- Cleanup and Unloading (like Rayfield)
-    function self:Unload()
+    -- === Enhanced Unloading ===
+    function self:Destroy()
+        for _, window in pairs(windows) do
+            window:Destroy()
+        end
+        if inputConnection then
+            inputConnection:Disconnect()
+        end
+        blur:Destroy()
         gui:Destroy()
-        blur.Enabled = false
     end
 
+    table.insert(windows, main)
     return self
 end
 
