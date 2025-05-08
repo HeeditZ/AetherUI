@@ -33,7 +33,7 @@ function AetherUI:CreateWindow(options)
     -- Default values
     local windowName = options.Name or "AetherUI Window"
     local windowSize = options.Size or UDim2.new(0.8, 0, 0, 60)
-    local windowPos = options.Position or UDim2.new(0.5, 0, 1, -10)
+    local windowPos = options.Position or UDim2.new(0.5, 0, 1, -40)  -- Slightly adjusted position (higher)
 
     -- === Create the Main Window ===
     local main = Instance.new("Frame")
@@ -153,11 +153,10 @@ function AetherUI:CreateWindow(options)
         label.TextSize = 14
         label.Parent = sliderFrame
 
-        local slider = Instance.new("TextButton")
+        local slider = Instance.new("Frame")
         slider.Size = UDim2.new(1, -40, 0, 10)
         slider.Position = UDim2.new(0, 20, 0.5, -5)
         slider.BackgroundColor3 = theme.ButtonColor
-        slider.Text = ""
         slider.Parent = sliderFrame
 
         local thumb = Instance.new("Frame")
@@ -178,6 +177,12 @@ function AetherUI:CreateWindow(options)
             local value = min + (max - min) * (newX / slider.AbsoluteSize.X)
             if callback then callback(value) end
         end)
+    end
+
+    -- Cleanup and Unloading (like Rayfield)
+    function self:Unload()
+        gui:Destroy()
+        blur.Enabled = false
     end
 
     return self
