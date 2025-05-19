@@ -1,21 +1,22 @@
--- ✅ FULL GANG HUB SYSTEM — WITH KEY SYSTEM, DISCORD, GUI CORE, TABS & PREVENT DOUBLE LOAD --
+-- // GANG HUB MODULAR GUI CORE WITH GLASSY BUBBLE & TWEEN LOADER // --
 
--- // CONFIGURATION // --
 local validKey = "gang-hub-op"
-local discordInvite = "yourdiscord" -- no https://
+local discordInvite = "yourdiscord" -- discord.gg/yourdiscord
 local keyFile = "GangHubKey.txt"
 
--- // SERVICES // --
 local uis = game:GetService("UserInputService")
 local ts = game:GetService("TweenService")
-local hs = game:GetService("HttpService")
 local sg = game:GetService("StarterGui")
+local http = game:GetService("HttpService")
+local players = game:GetService("Players")
+local player = players.LocalPlayer
 
--- // DOUBLE LOAD CHECK // --
+-- Prevent double execution
 if getgenv().GangHubLoaded then return end
 getgenv().GangHubLoaded = true
 
--- // NOTIFICATION UTIL // --
+-- UTILITIES
+
 local function notify(title, text, duration)
     pcall(function()
         sg:SetCore("SendNotification", {
@@ -26,169 +27,378 @@ local function notify(title, text, duration)
     end)
 end
 
--- // GUI CORE LIB // --
-local Gui = {}
-Gui.__index = Gui
+-- KEY SYSTEM
 
-function Gui:CreateWindow(title)
-    local screen = Instance.new("ScreenGui", game.CoreGui)
-    screen.Name = "GangHub"
-    screen.ResetOnSpawn = false
-    screen.IgnoreGuiInset = true
-
-    local main = Instance.new("Frame", screen)
-    main.Size = UDim2.new(0, 500, 0, 350)
-    main.Position = UDim2.new(0.5, -250, 0.5, -175)
-    main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    main.BorderSizePixel = 0
-    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
-
-    local titleLbl = Instance.new("TextLabel", main)
-    titleLbl.Size = UDim2.new(1, 0, 0, 30)
-    titleLbl.Position = UDim2.new(0, 0, 0, 0)
-    titleLbl.BackgroundTransparency = 1
-    titleLbl.Font = Enum.Font.GothamBold
-    titleLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLbl.Text = title or "Gang Hub"
-    titleLbl.TextSize = 18
-
-    local tabs = {}
-    function Gui:CreateTab(tabName)
-        local tab = {}
-        local btn = Instance.new("TextButton", main)
-        btn.Size = UDim2.new(0, 100, 0, 30)
-        btn.Position = UDim2.new(0, #tabs * 100, 0, 30)
-        btn.Text = tabName
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 14
-        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-
-        local content = Instance.new("Frame", main)
-        content.Position = UDim2.new(0, 0, 0, 60)
-        content.Size = UDim2.new(1, 0, 1, -60)
-        content.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        content.Visible = false
-        Instance.new("UICorner", content).CornerRadius = UDim.new(0, 8)
-
-        btn.MouseButton1Click:Connect(function()
-            for _, t in pairs(tabs) do
-                t.content.Visible = false
-            end
-            content.Visible = true
-        end)
-
-        tab.content = content
-        tab.Buttons = {}
-
-        function tab:CreateButton(opt)
-            local b = Instance.new("TextButton", content)
-            b.Size = UDim2.new(0, 150, 0, 30)
-            b.Position = UDim2.new(0, 10, 0, 10 + (#tab.Buttons * 40))
-            b.Text = opt.Text or "Button"
-            b.Font = Enum.Font.Gotham
-            b.TextSize = 14
-            b.TextColor3 = Color3.new(1, 1, 1)
-            b.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-
-            b.MouseButton1Click:Connect(function()
-                pcall(opt.Callback or function() end)
-            end)
-
-            table.insert(tab.Buttons, b)
-        end
-
-        table.insert(tabs, tab)
-        return tab
-    end
-
-    return setmetatable({}, Gui)
+local function readKey()
+    local success, data = pcall(function()
+        return readfile and readfile(keyFile) or nil
+    end)
+    if success and data then return data else return nil end
 end
 
--- // GUI KEY SYSTEM // --
-local function launchKeySystem()
-    local screen = Instance.new("ScreenGui", game.CoreGui)
-    screen.Name = "KeySystem"
-    screen.ResetOnSpawn = false
-    screen.IgnoreGuiInset = true
+local function saveKey(key)
+    if writefile then
+        pcall(function()
+            writefile(keyFile, key)
+        end)
+    end
+end
 
-    local frame = Instance.new("Frame", screen)
-    frame.Size = UDim2.new(0, 350, 0, 200)
-    frame.Position = UDim2.new(0.5, -175, 0.5, -100)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+local function promptKey()
+    -- Key GUI
+    local screen = Instance.new("ScreenGui")
+    screen.Name = "GangHubKeyPrompt"
+    screen.ResetOnSpawn = false
+    screen.Parent = game.CoreGui
+
+    local bg = Instance.new("Frame", screen)
+    bg.Size = UDim2.new(1,0,1,0)
+    bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    bg.BackgroundTransparency = 0.6
+
+    local frame = Instance.new("Frame", bg)
+    frame.Size = UDim2.new(0, 350, 0, 160)
+    frame.Position = UDim2.new(0.5, -175, 0.5, -80)
+    frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
     frame.BorderSizePixel = 0
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0, 18)
 
     local title = Instance.new("TextLabel", frame)
-    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Size = UDim2.new(1, 0, 0, 40)
     title.Position = UDim2.new(0, 0, 0, 10)
-    title.Text = "🔐 Enter Your Key"
     title.BackgroundTransparency = 1
-    title.Font = Enum.Font.GothamSemibold
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.TextSize = 20
+    title.Font = Enum.Font.GothamBold
+    title.TextColor3 = Color3.new(1,1,1)
+    title.TextSize = 22
+    title.Text = "Enter Gang Hub Key"
 
-    local box = Instance.new("TextBox", frame)
-    box.Size = UDim2.new(0.8, 0, 0, 40)
-    box.Position = UDim2.new(0.1, 0, 0.3, 0)
-    box.PlaceholderText = "Key here..."
-    box.Text = ""
-    box.Font = Enum.Font.Gotham
-    box.TextSize = 16
-    box.TextColor3 = Color3.new(1, 1, 1)
-    box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    local input = Instance.new("TextBox", frame)
+    input.Size = UDim2.new(0, 300, 0, 40)
+    input.Position = UDim2.new(0.5, -150, 0, 60)
+    input.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    input.TextColor3 = Color3.new(1,1,1)
+    input.TextSize = 20
+    input.ClearTextOnFocus = false
+    input.PlaceholderText = "Your Key Here"
+    input.Text = ""
 
-    local verify = Instance.new("TextButton", frame)
-    verify.Size = UDim2.new(0.5, 0, 0, 35)
-    verify.Position = UDim2.new(0.25, 0, 0.6, 0)
-    verify.Text = "Verify"
-    verify.Font = Enum.Font.GothamBold
-    verify.TextSize = 14
-    verify.TextColor3 = Color3.new(1, 1, 1)
-    verify.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    Instance.new("UICorner", verify).CornerRadius = UDim.new(0, 10)
+    local errorLabel = Instance.new("TextLabel", frame)
+    errorLabel.Size = UDim2.new(1, -20, 0, 20)
+    errorLabel.Position = UDim2.new(0, 10, 0, 110)
+    errorLabel.BackgroundTransparency = 1
+    errorLabel.Font = Enum.Font.Gotham
+    errorLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
+    errorLabel.TextSize = 16
+    errorLabel.Text = ""
 
-    local joinDiscord = Instance.new("TextButton", frame)
-    joinDiscord.Size = UDim2.new(0.5, 0, 0, 30)
-    joinDiscord.Position = UDim2.new(0.25, 0, 0.85, 0)
-    joinDiscord.Text = "Join Discord"
-    joinDiscord.Font = Enum.Font.Gotham
-    joinDiscord.TextSize = 13
-    joinDiscord.TextColor3 = Color3.new(1, 1, 1)
-    joinDiscord.BackgroundColor3 = Color3.fromRGB(50, 50, 100)
-    Instance.new("UICorner", joinDiscord).CornerRadius = UDim.new(0, 10)
+    local submit = Instance.new("TextButton", frame)
+    submit.Size = UDim2.new(0, 140, 0, 35)
+    submit.Position = UDim2.new(0.5, -70, 0, 135)
+    submit.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    submit.TextColor3 = Color3.new(1,1,1)
+    submit.Font = Enum.Font.GothamSemibold
+    submit.TextSize = 18
+    submit.Text = "Submit"
+    local submitCorner = Instance.new("UICorner", submit)
+    submitCorner.CornerRadius = UDim.new(0, 10)
 
-    joinDiscord.MouseButton1Click:Connect(function()
-        setclipboard("https://discord.gg/" .. discordInvite)
-        notify("Discord", "Invite copied to clipboard!", 4)
+    submit.MouseEnter:Connect(function()
+        ts:Create(submit, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(90,90,90)}):Play()
+    end)
+    submit.MouseLeave:Connect(function()
+        ts:Create(submit, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(70,70,70)}):Play()
     end)
 
-    verify.MouseButton1Click:Connect(function()
-        if box.Text == validKey then
-            writefile(keyFile, box.Text)
-            notify("Success", "Correct key, loading...", 3)
+    local function checkKey()
+        if input.Text == validKey then
+            saveKey(input.Text)
+            notify("Gang Hub", "Key Accepted!", 3)
             screen:Destroy()
-            wait(0.5)
-
-            local window = Gui:CreateWindow("Gang Hub")
-            local tab = window:CreateTab("Combat")
-            tab:CreateButton({Text = "Kill Aura", Callback = function() print("Aura") end})
+            spawn(function()
+                wait(0.1)
+                GangHub:Init()
+            end)
         else
-            verify.Text = "Invalid!"
-            task.wait(1)
-            verify.Text = "Verify"
+            errorLabel.Text = "Invalid Key, try again."
+        end
+    end
+
+    submit.MouseButton1Click:Connect(checkKey)
+    input.FocusLost:Connect(function(enterPressed)
+        if enterPressed then checkKey() end
+    end)
+end
+
+-- CONFIG SYSTEM (save/load toggle, slider, dropdown values)
+
+local configFile = "GangHubConfig.json"
+local config = {}
+
+local function saveConfig()
+    if writefile then
+        pcall(function()
+            writefile(configFile, http:JSONEncode(config))
+        end)
+    end
+end
+
+local function loadConfig()
+    if readfile then
+        local success, data = pcall(function()
+            return readfile(configFile)
+        end)
+        if success and data then
+            local ok, decoded = pcall(function()
+                return http:JSONDecode(data)
+            end)
+            if ok and decoded then
+                config = decoded
+            end
+        end
+    end
+end
+
+-- MAIN GUI CORE
+
+local GangHub = {}
+GangHub.__index = GangHub
+
+function GangHub:Init()
+    loadConfig()
+
+    -- Create ScreenGui
+    local screen = Instance.new("ScreenGui")
+    screen.Name = "GangHub"
+    screen.ResetOnSpawn = false
+    screen.Parent = game.CoreGui
+    screen.IgnoreGuiInset = true
+
+    -- Main frame
+    local main = Instance.new("Frame", screen)
+    main.Size = UDim2.new(0, 520, 0, 380)
+    main.Position = UDim2.new(0.5, -260, 0.5, -190)
+    main.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    main.BorderSizePixel = 0
+    local mainCorner = Instance.new("UICorner", main)
+    mainCorner.CornerRadius = UDim.new(0, 18)
+    main.ClipsDescendants = true
+
+    -- Glassy bubble toggle
+    local bubble = Instance.new("Frame", screen)
+    bubble.Size = UDim2.new(0, 56, 0, 56)
+    bubble.Position = UDim2.new(0, 12, 0.7, 0)
+    bubble.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    bubble.BackgroundTransparency = 0.3
+    bubble.BorderSizePixel = 0
+    local bubbleCorner = Instance.new("UICorner", bubble)
+    bubbleCorner.CornerRadius = UDim.new(1, 0)
+
+    local bubbleBlur = Instance.new("UIBlurEffect", bubble)
+    bubbleBlur.Enabled = true
+    -- UIBlurEffect only works in lighting, so instead let's fake glass with transparency + gradient
+
+    -- Icon (you can replace with your own image here)
+    local icon = Instance.new("TextLabel", bubble)
+    icon.Text = "GH"
+    icon.Font = Enum.Font.GothamBlack
+    icon.TextColor3 = Color3.fromRGB(200, 200, 255)
+    icon.TextSize = 28
+    icon.BackgroundTransparency = 1
+    icon.Size = UDim2.new(1, 0, 1, 0)
+    icon.TextStrokeTransparency = 0.7
+
+    local isOpen = false
+
+    local function openMain()
+        isOpen = true
+        bubble:TweenPosition(UDim2.new(0, 12, 0.5, 0), "Out", "Quad", 0.4, true)
+        main:TweenPosition(UDim2.new(0.5, -260, 0.5, -190), "Out", "Quad", 0.4, true)
+        main:TweenSize(UDim2.new(0, 520, 0, 380), "Out", "Quad", 0.4, true)
+        wait(0.4)
+        main.Visible = true
+    end
+    local function closeMain()
+        isOpen = false
+        main:TweenSize(UDim2.new(0, 0, 0, 0), "In", "Quad", 0.4, true)
+        main:TweenPosition(UDim2.new(0, 12, 0.5, 0), "In", "Quad", 0.4, true)
+        wait(0.4)
+        main.Visible = false
+        bubble:TweenPosition(UDim2.new(0, 12, 0.7, 0), "In", "Quad", 0.4, true)
+    end
+
+    bubble.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if isOpen then
+                closeMain()
+            else
+                main.Visible = true
+                openMain()
+            end
         end
     end)
+
+    main.Visible = false
+    main.Position = UDim2.new(0, 12, 0.5, 0)
+    main.Size = UDim2.new(0, 0, 0, 0)
+
+    -- Title
+    local titleLbl = Instance.new("TextLabel", main)
+    titleLbl.Size = UDim2.new(1, 0, 0, 42)
+    titleLbl.Position = UDim2.new(0, 0, 0, 0)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Font = Enum.Font.GothamBlack
+    titleLbl.TextColor3 = Color3.fromRGB(190, 190, 255)
+    titleLbl.TextSize = 28
+    titleLbl.Text = "Gang Hub"
+
+    -- Tabs container (left side)
+local tabsFrame = Instance.new("Frame", main)
+tabsFrame.Size = UDim2.new(0, 130, 1, -42)
+tabsFrame.Position = UDim2.new(0, 0, 0, 42)
+tabsFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+tabsFrame.BorderSizePixel = 0
+
+local tabsCorner = Instance.new("UICorner", tabsFrame)
+tabsCorner.CornerRadius = UDim.new(0, 10)
+
+local uiList = Instance.new("UIListLayout", tabsFrame)
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0, 4)
+
+-- Pages container
+local pagesFolder = Instance.new("Folder", main)
+pagesFolder.Name = "Pages"
+
+-- GUI creation API
+function GangHub:CreateTab(tabName)
+    local tabButton = Instance.new("TextButton", tabsFrame)
+    tabButton.Size = UDim2.new(1, -10, 0, 40)
+    tabButton.Position = UDim2.new(0, 5, 0, 0)
+    tabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    tabButton.TextColor3 = Color3.new(1,1,1)
+    tabButton.Font = Enum.Font.GothamSemibold
+    tabButton.TextSize = 18
+    tabButton.Text = tabName
+
+    local tabCorner = Instance.new("UICorner", tabButton)
+    tabCorner.CornerRadius = UDim.new(0, 8)
+
+    local page = Instance.new("Frame", pagesFolder)
+    page.Name = tabName
+    page.Size = UDim2.new(1, -140, 1, -50)
+    page.Position = UDim2.new(0, 135, 0, 45)
+    page.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
+    page.BorderSizePixel = 0
+    page.Visible = false
+
+    local uiList = Instance.new("UIListLayout", page)
+    uiList.SortOrder = Enum.SortOrder.LayoutOrder
+    uiList.Padding = UDim.new(0, 6)
+
+    tabButton.MouseButton1Click:Connect(function()
+        for _, p in ipairs(pagesFolder:GetChildren()) do
+            if p:IsA("Frame") then p.Visible = false end
+        end
+        page.Visible = true
+    end)
+
+    return {
+        AddButton = function(self, text, callback)
+            local button = Instance.new("TextButton", page)
+            button.Size = UDim2.new(1, -20, 0, 36)
+            button.Position = UDim2.new(0, 10, 0, 0)
+            button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            button.TextColor3 = Color3.new(1,1,1)
+            button.Font = Enum.Font.Gotham
+            button.TextSize = 16
+            button.Text = text
+
+            local corner = Instance.new("UICorner", button)
+            corner.CornerRadius = UDim.new(0, 8)
+
+            button.MouseButton1Click:Connect(callback)
+        end,
+
+        AddToggle = function(self, text, configKey, callback)
+            local toggle = Instance.new("TextButton", page)
+            toggle.Size = UDim2.new(1, -20, 0, 36)
+            toggle.Position = UDim2.new(0, 10, 0, 0)
+            toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            toggle.TextColor3 = Color3.new(1,1,1)
+            toggle.Font = Enum.Font.Gotham
+            toggle.TextSize = 16
+            toggle.Text = "[ OFF ] " .. text
+
+            local corner = Instance.new("UICorner", toggle)
+            corner.CornerRadius = UDim.new(0, 8)
+
+            local state = config[configKey] or false
+            local function updateText()
+                toggle.Text = state and "[ ON  ] " .. text or "[ OFF ] " .. text
+            end
+            updateText()
+
+            toggle.MouseButton1Click:Connect(function()
+                state = not state
+                config[configKey] = state
+                updateText()
+                pcall(callback, state)
+                saveConfig()
+            end)
+        end,
+
+        AddDropdown = function(self, text, options, configKey, callback)
+            local container = Instance.new("Frame", page)
+            container.Size = UDim2.new(1, -20, 0, 36 + (#options * 30))
+            container.Position = UDim2.new(0, 10, 0, 0)
+            container.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            container.BorderSizePixel = 0
+
+            local corner = Instance.new("UICorner", container)
+            corner.CornerRadius = UDim.new(0, 8)
+
+            local label = Instance.new("TextLabel", container)
+            label.Size = UDim2.new(1, 0, 0, 36)
+            label.BackgroundTransparency = 1
+            label.Text = text .. ": " .. (config[configKey] or "None")
+            label.TextColor3 = Color3.new(1,1,1)
+            label.Font = Enum.Font.Gotham
+            label.TextSize = 16
+
+            for i, option in ipairs(options) do
+                local btn = Instance.new("TextButton", container)
+                btn.Size = UDim2.new(1, -10, 0, 28)
+                btn.Position = UDim2.new(0, 5, 0, 36 + ((i - 1) * 30))
+                btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+                btn.Text = option
+                btn.TextColor3 = Color3.new(1,1,1)
+                btn.Font = Enum.Font.Gotham
+                btn.TextSize = 14
+
+                local btnCorner = Instance.new("UICorner", btn)
+                btnCorner.CornerRadius = UDim.new(0, 6)
+
+                btn.MouseButton1Click:Connect(function()
+                    config[configKey] = option
+                    label.Text = text .. ": " .. option
+                    pcall(callback, option)
+                    saveConfig()
+                end)
+            end
+        end,
+    }
 end
 
--- AUTO LOAD OR KEY SYSTEM --
-if isfile(keyFile) and readfile(keyFile) == validKey then
-    local window = Gui:CreateWindow("Gang Hub")
-    local tab = window:CreateTab("Combat")
-    tab:CreateButton({Text = "Kill Aura", Callback = function() print("Aura") end})
-else
-    launchKeySystem()
+-- Finish initializing the UI
+function GangHub:Run()
+    local saved = readKey()
+    if saved == validKey then
+        notify("Gang Hub", "Welcome back G.", 3)
+        GangHub:Init()
+    else
+        promptKey()
+    end
 end
+
+return GangHub
