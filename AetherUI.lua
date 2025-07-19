@@ -999,25 +999,342 @@ function Library:CreateWindow(config)
             return Slider
         end
         
-        -- Dropdown Functions
-        function Tab:CreateDropdown(config)
-            local Dropdown = {}
-            Dropdown.Value = config.CurrentOption or config.Options[1]
-            Dropdown.Open = false
-            
-            local DropdownFrame = Instance.new("Frame")
-            DropdownFrame.Name = "Dropdown"
-            DropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-            DropdownFrame.BorderSizePixel = 0
-            DropdownFrame.Size = UDim2.new(1, 0, 0, 40)
-            DropdownFrame.ClipsDescendants = true
-            DropdownFrame.Parent = TabContent
-            
-            local DropdownCorner = Instance.new("UICorner")
-            DropdownCorner.CornerRadius = UDim.new(0, 8)
-            DropdownCorner.Parent = DropdownFrame
-            
-            local DropdownButton = Instance.new("TextButton")
-            DropdownButton.Name = "DropdownButton"
-            DropdownButton.BackgroundTransparency = 1
-            DropdownButton.Size = UDim2.new(1, 0, 0, 40)
+ -- Dropdown Functions
+function Tab:CreateDropdown(config)
+    local Dropdown = {}
+    Dropdown.Value = config.CurrentOption or config.Options[1]
+    Dropdown.Open = false
+
+    local DropdownFrame = Instance.new("Frame")
+    DropdownFrame.Name = "Dropdown"
+    DropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    DropdownFrame.BorderSizePixel = 0
+    DropdownFrame.Size = UDim2.new(1, 0, 0, 40)
+    DropdownFrame.ClipsDescendants = true
+    DropdownFrame.Parent = TabContent
+
+    local DropdownCorner = Instance.new("UICorner")
+    DropdownCorner.CornerRadius = UDim.new(0, 8)
+    DropdownCorner.Parent = DropdownFrame
+
+    local DropdownButton = Instance.new("TextButton")
+    DropdownButton.Name = "DropdownButton"
+    DropdownButton.BackgroundTransparency = 1
+    DropdownButton.Size = UDim2.new(1, 0, 0, 40)
+    DropdownButton.Text = config.Name or "Dropdown"
+    DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DropdownButton.TextScaled = true
+    DropdownButton.TextWrapped = true
+    DropdownButton.Font = Enum.Font.Gotham
+    DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+    DropdownButton.Parent = DropdownFrame
+
+    local Arrow = Instance.new("ImageLabel")
+    Arrow.Name = "Arrow"
+    Arrow.BackgroundTransparency = 1
+    Arrow.Size = UDim2.new(0, 20, 0, 20)
+    Arrow.Position = UDim2.new(1, -30, 0.5, -10)
+    Arrow.Image = getIcon("chevron-down")
+    Arrow.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    Arrow.Parent = DropdownFrame
+
+    local OptionHolder = Instance.new("Frame")
+    OptionHolder.Name = "OptionHolder"
+    OptionHolder.BackgroundTransparency = 1
+    OptionHolder.Position = UDim2.new(0, 0, 0, 40)
+    OptionHolder.Size = UDim2.new(1, 0, 0, 0)
+    OptionHolder.ClipsDescendants = true
+    OptionHolder.Parent = DropdownFrame
+
+    local OptionLayout = Instance.new("UIListLayout")
+    OptionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    OptionLayout.Padding = UDim.new(0, 2)
+    OptionLayout.Parent = OptionHolder
+
+    local function toggleDropdown()
+        Dropdown.Open = not Dropdown.Open
+        local height = Dropdown.Open and (#config.Options * 30) or 0
+        OptionHolder:TweenSize(UDim2.new(1, 0, 0, height), "Out", "Quad", 0.25, true)
+        Arrow.Rotation = Dropdown.Open and 180 or 0
+    end
+
+    local function updateOptions()
+        OptionHolder:ClearAllChildren()
+        OptionLayout.Parent = OptionHolder
+        for _, option in ipairs(config.Options) do
+            local OptionBtn = Instance.new("TextButton")
+            OptionBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+            OptionBtn.Size = UDim2.new(1, -20, 0, 30)
+            OptionBtn.Position = UDim2.new(0, 10, 0, 0)
+            OptionBtn.Text = option
+            OptionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            OptionBtn.Font = Enum.Font.Gotham
+            OptionBtn.TextScaled = true
+            OptionBtn.Parent = OptionHolder
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 6)
+            corner.Parent = OptionBtn
+
+            OptionBtn.MouseButton1Click:Connect(function()
+                Dropdown.Value = option
+                DropdownButton.Text = option
+                toggleDropdown()
+                if config.Callback then
+                    config.Callback(option)
+                end
+            end)
+        end
+    end
+
+    DropdownButton.MouseButton1Click:Connect(function()
+        toggleDropdown()
+    end)
+
+    updateOptions()
+    DropdownButton.Text = Dropdown.Value
+
+    function Dropdown:Set(value)
+        Dropdown.Value = value
+        DropdownButton.Text = value
+        if config.Callback then
+            config.Callback(value)
+        end
+    end
+
+    return Dropdown
+end
+-- Input Field
+function Tab:CreateInput(config)
+    local Input = {}
+    Input.Value = config.Default or ""
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, 0, 0, 40)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = TabContent
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Frame
+
+    local Box = Instance.new("TextBox")
+    Box.Size = UDim2.new(1, -20, 1, 0)
+    Box.Position = UDim2.new(0, 10, 0, 0)
+    Box.Text = Input.Value
+    Box.ClearTextOnFocus = false
+    Box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Box.BackgroundTransparency = 1
+    Box.Font = Enum.Font.Gotham
+    Box.TextScaled = true
+    Box.TextWrapped = true
+    Box.TextXAlignment = Enum.TextXAlignment.Left
+    Box.Parent = Frame
+
+    Box.FocusLost:Connect(function()
+        Input.Value = Box.Text
+        if config.Callback then
+            config.Callback(Box.Text)
+        end
+    end)
+
+    function Input:Set(text)
+        Input.Value = text
+        Box.Text = text
+    end
+
+    return Input
+end
+
+-- Notifications
+function Library:Notify(text, duration)
+    duration = duration or 3
+    local Notification = Instance.new("TextLabel")
+    Notification.Size = UDim2.new(0, 300, 0, 40)
+    Notification.Position = UDim2.new(1, -320, 1, -100)
+    Notification.AnchorPoint = Vector2.new(1, 1)
+    Notification.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    Notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Notification.Text = text
+    Notification.TextScaled = true
+    Notification.Font = Enum.Font.Gotham
+    Notification.BorderSizePixel = 0
+    Notification.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Notification
+
+    createTween(Notification, TweenInfo.new(0.25), {Position = UDim2.new(1, -320, 1, -120)})
+    task.delay(duration, function()
+        createTween(Notification, TweenInfo.new(0.25), {Position = UDim2.new(1, -320, 1, 0)})
+        game:GetService("Debris"):AddItem(Notification, 0.5)
+    end)
+end
+
+-- Theme Support
+Library.Theme = "Dark"
+function Library:SetTheme(theme)
+    self.Theme = theme
+    -- implement theme color changes later
+end
+
+-- Save/Load Settings
+Library.Settings = {}
+function Library:SaveSettings()
+    local encoded = HttpService:JSONEncode(self.Settings)
+    if writefile then
+        writefile("aurora_settings.json", encoded)
+    end
+end
+
+function Library:LoadSettings()
+    if isfile and isfile("aurora_settings.json") then
+        local data = readfile("aurora_settings.json")
+        self.Settings = HttpService:JSONDecode(data)
+    end
+end
+
+-- Key System
+function Library:KeySystem(correctKey, callback)
+    local KeyGui = Instance.new("ScreenGui", PlayerGui)
+    KeyGui.Name = "AuroraKeyUI"
+
+    local Frame = Instance.new("Frame", KeyGui)
+    Frame.Size = UDim2.new(0, 300, 0, 150)
+    Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    Frame.BorderSizePixel = 0
+
+    local Corner = Instance.new("UICorner", Frame)
+    Corner.CornerRadius = UDim.new(0, 10)
+
+    local Input = Instance.new("TextBox", Frame)
+    Input.PlaceholderText = "Enter key..."
+    Input.Size = UDim2.new(1, -20, 0, 40)
+    Input.Position = UDim2.new(0, 10, 0, 30)
+    Input.Text = ""
+    Input.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Input.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    Input.Font = Enum.Font.Gotham
+    Input.TextScaled = true
+    Input.ClearTextOnFocus = true
+
+    local Submit = Instance.new("TextButton", Frame)
+    Submit.Text = "Submit"
+    Submit.Size = UDim2.new(1, -20, 0, 40)
+    Submit.Position = UDim2.new(0, 10, 0, 80)
+    Submit.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Submit.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    Submit.Font = Enum.Font.Gotham
+    Submit.TextScaled = true
+
+    Submit.MouseButton1Click:Connect(function()
+        if Input.Text == correctKey then
+            KeyGui:Destroy()
+            if callback then callback() end
+        else
+            Input.Text = "Wrong key!"
+        end
+    end)
+end
+function Tab:CreateColorPicker(config)
+    local Picker = {}
+    Picker.Value = config.CurrentColor or Color3.fromRGB(255, 255, 255)
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, 0, 0, 40)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = TabContent
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Frame
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -50, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.Text = config.Name or "Color Picker"
+    Label.TextScaled = true
+    Label.Font = Enum.Font.Gotham
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Frame
+
+    local ColorBtn = Instance.new("TextButton")
+    ColorBtn.Size = UDim2.new(0, 30, 0, 30)
+    ColorBtn.Position = UDim2.new(1, -40, 0.5, -15)
+    ColorBtn.BackgroundColor3 = Picker.Value
+    ColorBtn.BorderSizePixel = 0
+    ColorBtn.Text = ""
+    ColorBtn.Parent = Frame
+
+    local ColorCorner = Instance.new("UICorner")
+    ColorCorner.CornerRadius = UDim.new(1, 0)
+    ColorCorner.Parent = ColorBtn
+
+    ColorBtn.MouseButton1Click:Connect(function()
+        local color = Picker.Value
+        local picked = game:GetService("StarterGui"):PromptColorPicker(color)
+        if picked then
+            Picker.Value = picked
+            ColorBtn.BackgroundColor3 = picked
+            if config.Callback then
+                config.Callback(picked)
+            end
+        end
+    end)
+
+    function Picker:Set(value)
+        Picker.Value = value
+        ColorBtn.BackgroundColor3 = value
+        if config.Callback then
+            config.Callback(value)
+        end
+    end
+
+    return Picker
+end
+do
+    local UIS = game:GetService("UserInputService")
+    local RunService = game:GetService("RunService")
+    local dragging, dragInput, dragStart, startPos
+
+    local gui = PlayerGui:WaitForChild("ModernLibrary"):WaitForChild("MainFrame")
+
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = gui.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    gui.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if dragging and dragInput then
+            local delta = dragInput.Position - dragStart
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- K to toggle visibility
+    UIS.InputBegan:Connect(function(input, gpe)
+        if not gpe and input.KeyCode == Enum.KeyCode.K then
+            gui.Visible = not gui.Visible
+        end
+    end)
+end
